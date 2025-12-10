@@ -1,0 +1,11 @@
+{
+  "name": "reactive-html",
+  "version": "1.0.0",
+  "description": "A straight forward Web Components based framework, that leverages what you know about HTML, CSS, and JS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ingelbert Figueroa",
+  "license": "MIT"
+}
