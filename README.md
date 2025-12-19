@@ -1,28 +1,24 @@
-# ReactiveHTMLElement v2.0
-
-### **Overview:**
-
+# ReactiveHTMLElement v1.0
+## Overview:
 ReactiveHTMLElement class extends the standard HTMLElement class that is used to create JS Web Components. Its main purpose is to introduce reactivity and flow of data to Web Components by introducing a minimal framework that relies heavily on standard JS and a dash of syntactical sugar.
 
-### **Example:**
-
+### Example:
 ```javascript
-import { createReactiveElement } from 'reactive-html'
-
-const template = ({props}) => {
+const template = function(instance) {
   return `
-    <div>My name is: ${props.name}</div>
-    <input value="${props.name}">
+    <div>My name is: ${instance.props.name}</div>
+    <input value="${instance.props.name}">
     <button @click="updateName">Update Name</button>
   `
 }
-
-export default createReactiveElement({
-	name: 'reactive-web-component',
-	template,
-	props: 'name',
-	methods: {
-    updateName(e) {
+customElements.define('reactive-web-component',
+  class ReactiveWebComponent extends ReactiveHTMLElement {
+    static observedAttributes = [':name']
+    constructor() {
+      super()
+      this.render(template)
+    }
+    updateName = (e) => {
       const input = this.dom.querySelector('input')
       const value = input.value
       this.setAttribute(':name',value)
@@ -30,17 +26,25 @@ export default createReactiveElement({
   }
 )
 ```
-
-## **The Template Function**
-
-The template function is used to both define and render the template of the component. In ReactiveHTML, you return a template literal that will be used to render the component, offering JSX-like syntax.
-
-Within the function, you can perform normal JS and have access to the props, data, and methods by destructuring the instance parameter
+## Templating
+In most frontend frameworks a templating language is used to write the HTML of components that will be rendered in the DOM. With this framework, the HTML can be written with JS template literals.
 
 ```javascript
-import { createReactiveElement } from 'reactive-html'
+const name = 'Template'
+const template = `<div>I'm a ${name}</div>`
+console.log(template)
+// Logs: '<div>I'm a Template</div>'
+```
 
-const template = ({props,data,...}) {
+Template literals offer a JSX-like experience within JS without the need for compilation. Allowing components written with this framework cross-support.
+
+<span style="color:orange">TODO: Use tags to extend the functionality of template literals</span>
+
+## The Render Function
+The render function is used to both define and render the template of the component. In this version of ReactiveHTMLElement, a template is an anonymous function with the template literal as the returning value and it is required in the constructor for the component to function.
+
+```javascript
+const template = function(instance) {
   const name = 'Template'
   return `
     <div>
@@ -48,32 +52,27 @@ const template = ({props,data,...}) {
     </div>
   `
 }
-
-export default createReactiveElement({
-	name: 'my-component',
-	template,
-	...
+customElements.define('my-component',
+  class MyComponent extends ReactiveHTMLElement {
+    constructor() {
+      super()
+      this.render(template)
+    }
+  }
 )
 ```
 
-## **The Render Function**
-
-If you want changes to the state to reflect on the component, then you need to call the render function without parameters.:
+If you want changes to the state to reflect on the component then you need to call the render function without parameters.:
 
 ```javascript
 // Can be called anywhere after component is created
 this.render()
 ```
-
-## **Props**
-
-Props are a fundamental way of passing data from parent to child components. Props are assigned by adding a bound attribute. Bound attributes are prefixed with a `:` and are one-way (parent → child). The code below shows an example of the prop `:description`:
+## Props
+Props are a fundamental way of passing data from parent to child components. Props are assigned by adding a bound attribute. Bound attributes are prefixed with a : and are one-way (parent → child). The code below shows an example of the prop :description:
 
 ```javascript
-import { createReactiveHTML } from 'reactive-html'
-import MyDescription from 'my-description'
-
-const template = () => {
+const template = function(instance) {
   const name = 'Template'
   const description = "I'm used to create components"
   return `
@@ -84,76 +83,66 @@ const template = () => {
     </div>
   `
 }
-
-export default createReactiveElement({
-	name: 'my-component',
-	components: {
-		MyDescription
-	},
-	template
+customElements.define('my-component',
+  class MyComponent extends ReactiveHTMLElement {
+    constructor() {
+      super()
+      this.render(template)
+    }
+  }
 )
 ```
 
-Props can be accessed from any component that extends ReactiveHTMLElement via `this.props` instance property within methods or with the destructured variable `props` within the template function. The `my-description` component below illustrates how `:description` can be accessed:
+Props can be accessed from any component that extends ReactiveHTMLElement via this.props instance property or with instance.props within the template. The my-description component below illustrates how :description cam be accessed:
 
 ```javascript
-import { createReactiveHTML } from 'reactive-html'
-
-const template = ({props}) => {
+const template = function(instance) {
   return `
     <div>
-      ${props.description}
+      ${instance.props.description}
     </div>
   `
 }
-
-export default createReactiveElement({
-	name: 'my-description',
-	template,
-	props: {
-		description: String
-	}
+customElements.define('my-description',
+  class MyDescription extends ReactiveHTMLElement {
+    constructor() {
+      super()
+      this.render(template)
+    }
+  }
 )
 ```
-
-### **Encoding non-primitive values**
-
-Primitives can be set to props without encoding, but non-primitives must be encoded. To encode a prop value. Thankfully, the bind syntax will encode the value
+## Encoding non-primitive values
+Primitives can be set to props without encoding, but non-primitives must be encoded. To encode a prop value, use instance.encodeAttributeValue() function within a template or this.encodeAttributeValue() otherwise
 
 ```javascript
-import { createReactiveHTML } from 'reactive-html'
-import UserProfile from 'user-profile'
-
-const template = ({encodeAttributeValue}) => {
-  const user = encodeAttributeValue({
+const template = function(instance) {
+  const user = {
     firstName: "John",
     lastName: "Doe",
     dob: "09/19/1999"
-  })
+  }
   return `
     <div>
-      <user-profile :user="${user}">
+      <user-profile :user="${instance.encodeAttributeValue(user)}">
       </user-profile>
     </div>
   `)
 }
-
-export default createReactiveElement(
-	name: 'my-component',
-	components: {
-		UserProfile
-	},
-	template
+customElements.define('my-component',
+  class MyComponent extends ReactiveHTMLElement {
+    constructor() {
+      super()
+      this.render(template)
+    }
+  }
 )
 ```
+## Reactivity
+### Prop updates
+Components can react to prop changes which will initiate a re-render. Any children will also be updated in the process
 
-## **Reactivity**
-
-### **Prop updates**
-
-Components can react to prop changes, which will initiate a re-render. Any children will also be updated in the process
-
-If you need to do something during the update or need to assign the same value to a data prop then you can do so via the `propUpdate()`  lifecycle which occurs before render:
+If you need to do something during the update or need to assign the same value to a data prop then you can do so via the propUpdate()  lifecycle which occurs before render:
 
 ```javascript
 const template = function(instance) {
@@ -170,7 +159,7 @@ customElements.define('my-component',
       super()
       this.render(template)
     }
-// Fired before render
+    // Fired before render
     propUpdate(propName,value) {
       console.log(propName,value)
     }
@@ -178,23 +167,20 @@ customElements.define('my-component',
 )
 ```
 
-Note: For changes to props to be observed, you must declare the observed props by defining the static variable `observedAttributes`:
-
+<i>Note: For changes to props to be observed, you must declare the observed props by defining the static variable observedAttributes</i>
+ 
 ```javascript
 customElements.define('my-component',
   class MyComponent extends ReactiveHTMLElement {
     static observedAttributes = [":name"]
-//...
+    //...
   }
 )
 ```
-
-### **Emitting Events**
-
-If you want/need to broadcast changes to the component's state, `this.emitEvent()` can be used from anywhere within. Any parent component can catch the emitted event. The event will not continue propagating after it is caught.
+## Emitting Events
+If you want/need to broadcast changes to the component's state, this.emitEvent() can be used from anywhere within. Any parent component can catch the emitted event. The event will not continue propagating after it is caught.
 
 `emitEvent()` can take two parameters:
-
 - name: The name of the event that will be triggered
 - value (optional): Can be any value
 
@@ -203,10 +189,8 @@ If you want/need to broadcast changes to the component's state, `this.emitEvent(
 this.emitEvent("update")
 //...
 ```
-
-### **Action (@) attributes**
-
-`this.emitEvent()`relies on action attributes that are defined on the component's custom tag. Events will not be emitted unless these are defined and the handler names must be specified as the value of the attribute. Action attributes can be any name and are prefixed with @:
+## Action (@) attributes
+this.emitEvent()relies on action attributes that are defined on the component's custom tag. Events will not be emitted unless these are defined and the handler names must be specified as the value of the attribute. Action attributes can be any name and are prefixed with @:
 
 ```javascript
 const template = function(instance) {
@@ -217,7 +201,7 @@ const template = function(instance) {
         :name="${name}"
         @update="handleUpdate">
       </child-component>
-    </div>
+    </div>   
   `
 }
 customElements.define('parent-component',
@@ -236,15 +220,13 @@ customElements.define('parent-component',
 )
 ```
 
-Note: The value of the update action attribute is "handleUpdate" which is the name of the component method `handleUpdate()`.
+<i>Note: The value of the update action attribute is “handleUpdate” which is the name of the component method `handleUpdate()`</i>
 
 The handler has access to two parameters
-
 - value: The value that was passed from the child
 - context: The properties of the calling component
 
-### **Internal Action Attributes**
-
+## Internal Action Attributes
 Action attributes can also be used on HTML tags within the template, but only supported HTML events will function. Handlers will have an event as the parameter:
 
 ```javascript
@@ -254,7 +236,7 @@ const template = function(instance) {
       <button @click="handleClick">
         Click me!
       </button>
-    </div>
+    </div>   
   `
 }
 customElements.define('child-component',
@@ -268,23 +250,19 @@ customElements.define('child-component',
     }
   }
 )
-```
+``` 
 
-Note: Internal action events do not need to be declared.
+<i>Note: Internal action events do not need to be declared</i>
 
-## **ReactiveHTMLElement Lifecycles**
-
-### **propsUpdate**
-
+## ReactiveHTMLElement Lifecycles
+### propsUpdate
 The propsUpdate lifecycle will fire in the pre-render phase when a prop is updated. An array of prop names will be available as the first parameter
 
-### **postRender**
-
+### postRender
 The postRender will fire when the render method is called and only after DOM has been resolved
 
-## **Access to Web Component DOM**
-
-You can access the current web component with `this.dom`. The normal Element API should then be available when manipulating DOM
+## Access to Web Component DOM
+You can access the current web component with this.dom. The normal Element API should then be available when manipulating DOM
 
 ```javascript
 const template = function(instance) {
@@ -293,7 +271,7 @@ const template = function(instance) {
       <button @click="handleClick">
         Click me!
       </button>
-    </div>
+    </div>   
   `
 }
 customElements.define('my-component',
@@ -304,15 +282,13 @@ customElements.define('my-component',
     }
     connectedCallback() {
       const button = this.dom.querySelector('button')
-      console.log(button)// prints element in console when web component is mounted
+      console.log(button) // prints element in console when web component is mounted
     }
   }
 )
 ```
-
-## **Slots**
-
-Content that's externally added to the Web Component can be rendered with slot tags. If named, then the slot must have the name of the corresponding content:
+## Slots
+Content that’s externally added to the Web Component can be rendered with slot tags. If named, then the slot must have the name of the corresponding content:
 
 ```html
 <!DOCTYPE html>
