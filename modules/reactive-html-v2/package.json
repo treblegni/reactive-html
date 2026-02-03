@@ -1,0 +1,12 @@
+{
+  "name": "reactive-html",
+  "version": "2.0.0",
+  "description": "ReactiveHTML v2: Web Components with reactive data, Constructable Stylesheets, and dependency-aware readiness",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ingelbert Figueroa",
+  "license": "MIT"
+}

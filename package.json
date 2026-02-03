@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.8",
-    "reactive-html": "file:modules/reactive-html",
+    "reactive-html": "file:modules/reactive-html-v2",
     "tailwindcss": "^4.1.8"
   }
 }
