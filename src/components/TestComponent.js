@@ -1,23 +1,27 @@
 import { createReactiveElement } from 'reactive-html'
 import TextField from './TextField'
 
-const template = function() {
+function template() {
   return `
     <div class="flex flex-col w-72 p-4 gap-2">
       <h2 class="cursor-pointer text-red-800 text-3xl font-semibold" @click="handleTitleClick">${this.props.title}</h2>
-      <h2 :text="myTitle"></h2>
-      <span :text="myObject.name"></span>
+      <h2>${this.data.myTitle}</h2>
+      <span>${this.data.myObject.name}</span>
       ${this.data.items.map(item => `<span key="${item.id}">${item.name}</span>`).join('')}
       <a role="button" class="border rounded-lg h-10 px-6 cursor-pointer" @click="updateMyTitle">Change My Title</a>
-      <text-field :value="myObject.name"></text-field>
+      <text-field :value="${this.data.myObject.name}" @change="handleInput"></text-field>
     </div>
   `
 }
 
 export default createReactiveElement({
   template,
+  components: {
+    TextField
+  },
   name: 'test-component',
   props: ['title'],
+  triggers: ['change'],
   data: {
     myTitle: 'Subtitle',
     myObject: {
@@ -32,7 +36,7 @@ export default createReactiveElement({
   },
   methods: {
     test() {
-      return 'test'
+      return 'testing this method'
     },
     someOtherMethod() {
       return 'someOtherMethod'
@@ -46,6 +50,9 @@ export default createReactiveElement({
         ...this.data.myObject,
         name: 'Some other name'
       }
+    },
+    handleInput(value) {
+      this.data.myObject.name = value
     }
   }
 })

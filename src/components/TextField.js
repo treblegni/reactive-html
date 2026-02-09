@@ -1,22 +1,21 @@
 import { createReactiveElement } from 'reactive-html'
 
-const template = () => `
-  <input type="text" :value="value" @input="updateValue">
-`
+function template() {
+  return `
+    <input type="text" value="${this.props.value}" @input="updateValue">
+  `
+}
 
 export default createReactiveElement({
   template,
   props: ['value'],
-  data: {
-    value: ''
-  },
   name: 'text-field',
   postRender() {
     this.dom.querySelector('input').focus()
   },
   methods: {
     updateValue(e) {
-      this.data.value = e.target.value
+      this.emitEvent('change', e.target.value)
     }
   }
 })

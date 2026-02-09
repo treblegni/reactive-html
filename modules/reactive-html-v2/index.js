@@ -5,6 +5,22 @@
  * - whenReady() bootstrap; $rel.slots fix
  */
 
+function emitEvent (eventName, data) {
+  if (eventName in this.$rel.events) {
+    this.$rel.events[eventName](data)
+  } else {
+    this.dispatchEvent(new CustomEvent(eventName, {
+      detail: {
+        caller: this.getAttribute('rhtml-id'),
+        data,
+        props: this.$rel.props
+      },
+      bubbles: true,
+      composed: true
+    }))
+  }
+}
+
 function scheduleRender (instance) {
   if (instance.$rel.renderScheduled) return
   instance.$rel.renderScheduled = true
@@ -18,8 +34,12 @@ class ReactiveHTMLElement extends HTMLElement {
   $rel = {
     data: {},
     dom: null,
+    emitEvent: emitEvent.bind(this),
     events: {},
+    methods: {},
     props: {},
+    template: null,
+    templateFunction: null,
     triggers: [],
     ignoreUpdate: false,
     slots: [],
@@ -50,11 +70,15 @@ class ReactiveHTMLElement extends HTMLElement {
     }
     if (options.methods) {
       Object.entries(options.methods).forEach(([name, method]) => {
-        if (typeof method == 'function') this.$rel[name] = method.bind(this.$rel)
+        if (typeof method == 'function') this.$rel.methods[name] = method.bind(this.$rel)
       })
     }
     if (typeof options.template == 'function') {
-      this.$rel.template = options.template.bind(this.$rel)
+      const tokens = options.template.toString().split('`')
+      tokens.splice(0, 1)
+      tokens.pop()
+      this.$rel.template = tokens.join('')
+      this.$rel.templateFunction = options.template.bind(this.$rel)
     }
     if (options.props && options.props.length > 0) {
       options.props.forEach((attribute) => {
@@ -137,6 +161,7 @@ class ReactiveHTMLElement extends HTMLElement {
       subtree: true
     })
     this.render()
+    console.dir(this)
   }
 
   _customElementsCollector (element, collection = []) {
@@ -152,6 +177,26 @@ class ReactiveHTMLElement extends HTMLElement {
       })
     }
     return collection
+  }
+
+  _encodeAttributeValue (value) {
+    if (value == null) return ''
+    if (typeof value === 'string') {
+      return 'urienc' + encodeURIComponent(value)
+    }
+    return 'urienc' + encodeURIComponent(JSON.stringify(value))
+  }
+
+  _eventHandler (e) {
+    if (e.detail.caller !== this.getAttribute('rhtml-id') && e.detail.handler) {
+      if (e.detail.handler in this) {
+        e.stopPropagation()
+        this.$rel.methods[e.detail.handler](e.detail.data, {
+          ...e.detail.props,
+          caller: e.detail.caller
+        })
+      }
+    }
   }
 
   _getCustomElementTags (root) {
@@ -212,42 +257,6 @@ class ReactiveHTMLElement extends HTMLElement {
       }
     }
     return elements
-  }
-
-  emitEvent = (eventName, data) => {
-    if (eventName in this.$rel.events) {
-      this.$rel.events[eventName](data)
-    } else {
-      this.dispatchEvent(new CustomEvent(eventName, {
-        detail: {
-          caller: this.getAttribute('rhtml-id'),
-          data,
-          props: this.$rel.props
-        },
-        bubbles: true,
-        composed: true
-      }))
-    }
-  }
-
-  eventHandler = (e) => {
-    if (e.detail.caller !== this.getAttribute('rhtml-id') && e.detail.handler) {
-      if (e.detail.handler in this) {
-        e.stopPropagation()
-        this.$rel[e.detail.handler](e.detail.data, {
-          ...e.detail.props,
-          caller: e.detail.caller
-        })
-      }
-    }
-  }
-
-  encodeAttributeValue = (value) => {
-    if (value == null) return ''
-    if (typeof value === 'string') {
-      return 'urienc' + encodeURIComponent(value)
-    }
-    return 'urienc' + encodeURIComponent(JSON.stringify(value))
   }
 
   extractInternalElements (root) {
@@ -312,29 +321,6 @@ class ReactiveHTMLElement extends HTMLElement {
     }
   }
 
-  extractData (path, data) {
-    if (!data) return undefined
-    if (path.includes('.')) {
-      const dataProp = path.substring(path.indexOf('.') + 1)
-      return this.extractData(dataProp, data[path.split('.')[0]])
-    }
-    return data[path]
-  }
-
-  renderTextBinding (bind, data) {
-    const isContained = bind.closest('[\\:for]')
-    if (!isContained) {
-      const dataProp = bind.getAttribute(':text')
-      const value = this.extractData(dataProp, data)
-      if (value != null) bind.innerText = value.toString()
-    }
-  }
-
-  renderBindings (dom) {
-    const textBindings = dom.querySelectorAll('[\\:text]')
-    textBindings.forEach((bind) => this.renderTextBinding(bind, this.$rel.data))
-  }
-
   removeCustomAttributes () {
     this.$rel.ignoreUpdate = true
     const attrs = [...this.getAttributeNames().filter((a) => a.includes(':') || a.includes('@'))]
@@ -343,7 +329,7 @@ class ReactiveHTMLElement extends HTMLElement {
   }
 
   removeExternalListeners () {
-    this.$rel.triggers.forEach((event) => this.removeEventListener(event, this.eventHandler))
+    this.$rel.triggers.forEach((event) => this.removeEventListener(event, this._eventHandler))
   }
 
   removeInternalListeners () {
@@ -352,14 +338,14 @@ class ReactiveHTMLElement extends HTMLElement {
       const actionAttributes = Array.from(child.attributes).filter((attr) => attr.name.includes('@'))
       actionAttributes.forEach((attr) => {
         const action = attr.name.split('@')[1]
-        const handler = this.$rel[attr.value]
+        const handler = this.$rel.methods[attr.value]
         if (handler) child.removeEventListener(action, handler)
       })
     })
   }
 
   setExternalListeners () {
-    this.$rel.triggers.forEach((trigger) => this.addEventListener(trigger, this.eventHandler))
+    this.$rel.triggers.forEach((trigger) => this.addEventListener(trigger, this._eventHandler))
   }
 
   setInternalListeners () {
@@ -368,7 +354,7 @@ class ReactiveHTMLElement extends HTMLElement {
       const actionAttributes = Array.from(child.attributes).filter((attr) => attr.name.includes('@'))
       actionAttributes.forEach((attr) => {
         const action = attr.name.split('@')[1]
-        const handler = this.$rel[attr.value]
+        const handler = this.$rel.methods[attr.value]
         if (handler) child.addEventListener(action, handler)
       })
     })
@@ -404,15 +390,14 @@ class ReactiveHTMLElement extends HTMLElement {
 
   async render () {
     if (this.$rel.preRender) this.$rel.preRender()
-    if (this.$rel.template) {
-      this.$rel.dom.innerHTML = await this.$rel.template()
+    if (this.$rel.templateFunction) {
+      this.$rel.dom.innerHTML = await this.$rel.templateFunction()
       // get link tags on document and prepend them to $rel.dom
       const linkTags = document.querySelectorAll('link[rel="stylesheet"]')
       linkTags.forEach((link) => {
         this.$rel.dom.insertBefore(link.cloneNode(true), this.$rel.dom.firstChild)
       })
     }
-    this.renderBindings(this.$rel.dom)
     const childTags = this._getCustomElementTags(this.$rel.dom)
     if (childTags.length > 0) {
       await Promise.all(childTags.map((tag) => customElements.whenDefined(tag)))
